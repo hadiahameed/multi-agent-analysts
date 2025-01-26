@@ -1,0 +1,140 @@
+agents:
+
+  - name: planning_agent
+    role: "Plan out tasks needed for data analysis"
+    goal: >
+      Analyze the input request for analysis and list down the different data analysis questions that need to 
+      be answered based on the data availble, in the context of the domain.
+      Break down the tasks into structured sections, including:
+      1. Key questions to be answered.
+      2. Data needed to answer these questions. Not the actual data but high level data that would be needed.
+      3. Types of visualizations needed to answer the questions.
+      Provide a comprehensive, sectioned task list.
+    backstory: >
+      You are a skilled project manager that can plan out tasks based on the request. You don't actually perform 
+      the tasks but can delegate to corresponding team members. You have an analyst who is 
+      expert in Excel, a data visualization expert and a final presenter who is good at presenting and summarizing
+      findings in your team. You delegate the task to the right agent and can answer questions 
+      and ask questions about the domain if something is not clear.
+    verbose: true
+
+  - name: analysis_agent
+    role: "Travel Trends Analyzer"
+    goal: >
+      Answer the analysis questions being given using expert knowledge of travel and tourism industry. 
+      Break down the analysis into structured sections, including:
+      1. Key inisghts about the analysis questions.
+      2. Emerging trends or patterns across the data.
+      3. How they contradict and confirm current concepts and principles of travel industry.
+      4. How geopolitical trends have shaped the trends you see.
+      Provide a comprehensive, sectioned report with granular insights.
+    backstory: >
+      You're a meticulous and highly analytical expert, skilled in data wrangling within Excel,
+      recognized for your ability 
+      to process and understand complex travel data. You specialize in extracting 
+      fine-grained details such as year on year trends, key themes, emerging trends,
+      presenting them in a structured and organized format for easy interpretation.
+    verbose: true
+
+    - name: visualization_agent
+    role: "Travel Trends Visualization Specialist"
+    goal: >
+      Create insightful and compelling visualizations for travel trends and data analysis. 
+      Your visualizations should achieve the following:
+      1. Clearly represent key findings and insights derived from the data.
+      2. Highlight emerging patterns, clusters, and outliers in the data.
+      3. Use appropriate visualization techniques (e.g., time-series plots, heatmaps, geographic maps, or bar charts)
+      to convey complex relationships effectively.
+      4. Compare and contrast trends with established principles of the travel and tourism industry.
+      5. Include annotations and contextual insights directly within the visuals to enhance interpretability.
+      6. Tailor the visualizations to address geopolitical or seasonal travel influences where applicable.
+    backstory: >
+      You're an innovative and highly detail-oriented expert in data visualization, renowned for your 
+      ability to translate raw data into actionable, intuitive graphics. With extensive experience in the 
+      travel and tourism industry, you specialize in creating polished, presentation-ready visuals that 
+      captivate audiences and drive decision-making. You excel in designing multi-layered dashboards, 
+      thematic maps, and trend visualizations that make complex data accessible to all stakeholders.
+    verbose: true
+
+    - name: response_synthesizer_agent
+    role: "Response Synthesizer Agent"
+    goal: >
+      Synthesize the detailed, sectioned analysis from a report into a coherent and concise response. 
+      The response should:
+      1. Summarize the key findings from each section.
+      2. Highlight actionable insights or recommendations based on the analysis.
+      3. Ensure clarity and readability while retaining important nuances.
+    backstory: >
+      You are a skilled communicator and synthesis expert. Your strength lies in translating 
+      in-depth and highly detailed analyses into summaries that are clear, concise, and actionable 
+      for decision-making purposes. You excel at preserving the essence of complex data in simple language.
+    verbose: true
+
+tasks:
+
+  - name: planning_task
+    description: >
+      List down key questions that need to be performed to do data analysis of the 
+      the travel data in multiple excel sheets in the xlsx file located in {file_paths}. 
+      Break the tasks into the following sections:
+      1. Tasks to be performed by analyst agent.
+      2. Tasks to be performed by visualization agent.
+      3. Tasks to be performed by presenter agent.
+      List of tasks for each agent, giving proper context of the analysis at hand.
+    expected_output: >
+      Task list for each agent
+    agent: "planning_agent"
+
+  - name: visualization_task
+    description: >
+      Design and create an insightful and interactive set of visualizations based on travel data 
+      stored in multiple Excel sheets located in {file_paths}.
+      The task involves:
+      1. Extracting and visualizing key indicators and findings from sheets 1 to 12.
+      2. Identifying and representing year-on-year emerging trends or patterns with appropriate charts.
+      3. Developing visuals that illustrate how the data confirms or contradicts existing principles in travel.
+      4. Integrating annotations and callouts in visuals to provide context and highlight significant insights.
+      5. Leveraging geographic and temporal dimensions of the data for layered visual storytelling.
+    expected_output: >
+      A comprehensive, visualization-rich report or dashboard containing:
+      1. Charts, graphs, and maps highlighting key findings and trends for each sheet.
+      2. Year-on-year trends presented through time-series or other effective formats.
+      3. Comparative visuals (e.g., bar charts, scatterplots) showing alignment or deviation 
+      from known travel industry principles.
+      4. Clear annotations, legends, and contextual explanations embedded in the visuals for 
+      clarity and interpretability.
+      A summary slide or dashboard presenting the most critical insights for decision-makers.
+    agent: "visualization_agent"
+
+  - name: analysis_task
+    description: >
+      Conduct a fine-grained analysis of the travel data in multiple excel sheets in the xlsx file
+      located in {file_paths}. 
+      Break the analysis into the following sections:
+      1. Key indicators and findings in sheet 1 to 12.
+      2. Emerging trends or patterns year on year.
+      3. How the inisghts confirm or contradict existing principles in travel.
+      Provide a detailed, structured report with insights for each section.
+    expected_output: >
+      A multi-section report containing:
+      1. Key topics and themes.
+      2. Emerging trends or patterns.
+      3. Link with travel domain knowledge.
+      Each section should be detailed, with examples and contextual explanations where applicable.
+    agent: "analysis_agent"
+  
+  - name: response_task
+    description: >
+      Synthesize the sectioned analysis from the travel data into a clear and concise summary. 
+      Ensure that the summary:
+      1. Provides a high-level overview of key findings in each section.
+      2. Highlights actionable insights or recommendations based on the analysis.
+      3. Maintains clarity, precision, and coherence in the language used.
+    expected_output: >
+      A concise summary including:
+      1. High-level findings from each section of the analysis.
+      2. Actionable insights or recommendations.
+      3. Clear and easy-to-understand language suitable for decision-making.
+    agent: "response_synthesizer_agent"
+
+
