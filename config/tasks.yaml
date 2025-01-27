@@ -1,0 +1,34 @@
+research_task:
+  description: >
+    The context is UK travel trends. Conduct a thorough research about the travel patterns 
+    using the data in multiple text files in {file_paths}.
+    There are txt files containing context, contents, definitions and 
+    the actual data is in the files with filename starting with data.
+    Use Expedia's reports as a template to learn how to organize and present your findings 
+    but don't use Expedia's data. 
+    Make sure you find any interesting and relevant information given the
+    current year is 2024. Cut the data different ways to come up with a coherent story 
+    that can be presented to travel stakeholders.
+  expected_output: >
+    A complete report on the trends,
+    including their year on year growth, spending and intent of traveling.
+
+policy_task:
+  description: >
+   Based on the insight shared by researcher, come up with important KPIs related to travel and tourism.
+    Based on the trends shared by the researcher, come up with important policy changes needed
+    to improve the KPIs. 
+  expected_output: >
+    The different travel KPIs that are important based on the data.
+    The current state of the KPI. Major policy change recommendations to improve tourism KPIs with detailed reasoning
+    of why that recommendation is being given.
+
+insight_gathering_task:
+  description: >
+    Gather insights from research_task and policy_task and combine them into a cohesive story using numbers and 
+    examples. Tie it all together to give a summary of UK's current travel trends, comparison to other countries, current
+    policies, important travel KPIs, and policy recommendations to improve thos KPIs.
+  expected_output: >
+    A concise summary of UK's current travel trends, comparison to other countries, current
+    policies, important travel KPIs, and policy recommendations to improve thos KPIs.
+    An organized summary with proper headings and lists that non-technical government officials find interesting. 
