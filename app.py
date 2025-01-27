@@ -1,19 +1,25 @@
 import streamlit as st
 import os
+import json
 import tempfile
+from typing import List
+from crewai.tools import tool
+from contextlib import redirect_stdout
 import gc
+from crew import PolicyPostsCrew
+import sys
 import base64
 import time
 import yaml
-
 from tqdm import tqdm
 from dotenv import load_dotenv
 load_dotenv()
 
 from crewai import Agent, Crew, Process, Task, LLM
-from crewai_tools import FileReadTool
+from crewai_tools import ScrapeWebsiteTool,FileReadTool
+import pandas as pd
+from pydantic import BaseModel, Field
 
-docs_tool = FileReadTool()
 
 @st.cache_resource
 def load_llm():
@@ -26,78 +32,9 @@ def load_llm():
     # )
     return llm
 
-# ===========================
-#   Define Agents & Tasks
-# ===========================
-def create_agents_and_tasks():
-    """Creates a Crew for analysis of the channel scrapped output"""
-
-    with open("config.yaml", 'r') as file:
-        config = yaml.safe_load(file)
-    
-    planning_agent = Agent(
-        role=config["agents"][0]["role"],
-        goal=config["agents"][0]["goal"],
-        backstory=config["agents"][0]["backstory"],
-        verbose=True,
-        tools=[docs_tool],
-        llm=load_llm()
-    )
-
-    analysis_agent = Agent(
-        role=config["agents"][1]["role"],
-        goal=config["agents"][1]["goal"],
-        backstory=config["agents"][1]["backstory"],
-        verbose=True,
-        tools=[docs_tool],
-        llm=load_llm()
-    )
-
-    visualization_agent = Agent(
-        role=config["agents"][2]["role"],
-        goal=config["agents"][2]["goal"],
-        backstory=config["agents"][2]["backstory"],
-        verbose=True,
-        tools=[docs_tool],
-        llm=load_llm()
-    )
-    
-    response_synthesizer_agent = Agent(
-        role=config["agents"][3]["role"],
-        goal=config["agents"][3]["goal"],
-        backstory=config["agents"][3]["backstory"],
-        verbose=True,
-        tools=[docs_tool],
-        llm=load_llm()
-    )
-
-    analysis_task = Task(
-        description=config["tasks"][0]["description"],
-        expected_output=config["tasks"][0]["expected_output"],
-        agent=analysis_agent
-    )
-
-    response_task = Task(
-        description=config["tasks"][1]["description"],
-        expected_output=config["tasks"][1]["expected_output"],
-        agent=response_synthesizer_agent
-    )
-
-    crew = Crew(
-        agents=[analysis_agent, response_synthesizer_agent],
-        tasks=[analysis_task, response_task],
-        process=Process.sequential,
-        verbose=True
-    )
-    return crew
-
-# ===========================
-#   Streamlit Setup
-# ===========================
-
 st.markdown("""
-    # YouTube Trend Analysis powered by <img src="data:image/png;base64,{}" width="120" style="vertical-align: -3px;"> & <img src="data:image/png;base64,{}" width="120" style="vertical-align: -3px;">
-""".format(base64.b64encode(open("assets/crewai.png", "rb").read()).decode(), base64.b64encode(open("assets/brightdata.png", "rb").read()).decode()), unsafe_allow_html=True)
+    # UK travel trend report re-written by AI agents
+""", unsafe_allow_html=True)
 
 
 if "messages" not in st.session_state:
@@ -114,92 +51,30 @@ def reset_chat():
     gc.collect()
 
 def start_analysis():
-    # Create a status container
-    
-    
-    with st.spinner('Scraping videos... This may take a moment.'):
+    with st.spinner('The agents are analyzing the data.'):
+        try:
+            inputs = {
+            "file_paths": ['data/data_number_of_visits_aborad_by_area.txt', 'data/data_number_visits.txt', 'data/notes.txt', 'data/data_number_of_visits_abroad_by_area_purpose_air.txt', 'data/contents.txt', 'data/data_spending_abroad_area_purpose_visit.txt', 'data/data_number_of_visits_abroad_by_area_purpose_sea.txt', 'data/definitions.txt', 'data/data_number_of_visits_abroad_by_area_purpose_all_modes.txt', 'data/data_nights_spent_abroad.txt', 'data/data_number_of_visits_abroad_by_destination.txt', 
+                           'data/data_spending_abroad.txt', 'data/context.txt', 'data/data_spending_by_destination.txt',
+                           'data/Expedia_sample_report_2024.pdf','data/Expedia_sample_report_2025.pdf'],
+            'customer_domain': 'travel',
+            'project_description': """
+            Develop a report on outlining changes to UK's travel and tourism statistics from July 2024. Advise on policy change to improving our travel and tourism statistics: changes from July 2024.
 
-        status_container = st.empty()
-        status_container.info("Extracting videos from the channels...")
-        channel_snapshot_id = trigger_scraping_channels(bright_data_api_key, st.session_state.youtube_channels, 10, st.session_state.start_date, st.session_state.end_date, "Latest", "")
-        status = get_progress(bright_data_api_key, channel_snapshot_id['snapshot_id'])
+            Customer Domain: Travel and Tourism
+            Project Overview: Creating a comprehensive policy report to improve travel and tourism statistics for the UK.
+            """
+            }
+            st.session_state.crew = PolicyPostsCrew().crew()
+            #st.session_state.response = st.session_state.crew.kickoff(inputs=inputs)
+            output_file = "agents_output.txt"
+            with open(output_file, "a") as f:
+                with redirect_stdout(f):  # Redirect all print output to the file
+                    # Run the agent and capture its final response
+                    st.session_state.response = st.session_state.crew.kickoff(inputs=inputs)
+        except:
+            st.error(f"An error occurred during analysis: {str(e)}")
 
-        while status['status'] != "ready":
-            status_container.info(f"Current status: {status['status']}")
-            time.sleep(10)
-            status = get_progress(bright_data_api_key, channel_snapshot_id['snapshot_id'])
-
-            if status['status'] == "failed":
-                status_container.error(f"Scraping failed: {status}")
-                return
-        
-        if status['status'] == "ready":
-            status_container.success("Scraping completed successfully!")
-
-            # Show a list of YouTube vidoes here in a scrollable container
-            
-            channel_scrapped_output = get_output(bright_data_api_key, status['snapshot_id'], format="json")
-
-
-            st.markdown("## YouTube Videos Extracted")
-            # Create a container for the carousel
-            carousel_container = st.container()
-
-            # Calculate number of videos per row (adjust as needed)
-            videos_per_row = 3
-
-            with carousel_container:
-                # Calculate number of rows needed
-                num_videos = len(channel_scrapped_output[0])
-                num_rows = (num_videos + videos_per_row - 1) // videos_per_row
-                
-                for row in range(num_rows):
-                    # Create columns for each row
-                    cols = st.columns(videos_per_row)
-                    
-                    # Fill each column with a video
-                    for col_idx in range(videos_per_row):
-                        video_idx = row * videos_per_row + col_idx
-                        
-                        # Check if we still have videos to display
-                        if video_idx < num_videos:
-                            with cols[col_idx]:
-                                st.video(channel_scrapped_output[0][video_idx]['url'])
-
-            status_container.info("Processing transcripts...")
-            st.session_state.all_files = []
-            # Calculate transcripts
-            for i in tqdm(range(len(channel_scrapped_output[0]))):
-
-
-                # save transcript to file
-                youtube_video_id = channel_scrapped_output[0][i]['shortcode']
-                
-                file = "transcripts/" + youtube_video_id + ".txt"
-                st.session_state.all_files.append(file)
-
-                with open(file, "w") as f:
-                    for j in range(len(channel_scrapped_output[0][i]['formatted_transcript'])):
-                        text = channel_scrapped_output[0][i]['formatted_transcript'][j]['text']
-                        start_time = channel_scrapped_output[0][i]['formatted_transcript'][j]['start_time']
-                        end_time = channel_scrapped_output[0][i]['formatted_transcript'][j]['end_time']
-                        f.write(f"({start_time:.2f}-{end_time:.2f}): {text}\n")
-
-                    f.close()
-
-            st.session_state.channel_scrapped_output = channel_scrapped_output
-            status_container.success("Scraping complete! We shall now analyze the videos and report trends...")
-
-        else:
-            status_container.error(f"Scraping failed with status: {status}")
-
-    if status['status'] == "ready":
-
-        status_container = st.empty()
-        with st.spinner('The agent is analyzing the videos... This may take a moment.'):
-            # create crew
-            st.session_state.crew = create_agents_and_tasks()
-            st.session_state.response = st.session_state.crew.kickoff(inputs={"file_paths": ", ".join(st.session_state.all_files)})
                     
 
 
@@ -207,52 +82,13 @@ def start_analysis():
 #   Sidebar
 # ===========================
 with st.sidebar:
-    st.header("YouTube Channels")
-    
-    # Initialize the channels list in session state if it doesn't exist
-    if "youtube_channels" not in st.session_state:
-        st.session_state.youtube_channels = [""]  # Start with one empty field
-    
-    # Function to add new channel field
-    def add_channel_field():
-        st.session_state.youtube_channels.append("")
-    
-    # Create input fields for each channel
-    for i, channel in enumerate(st.session_state.youtube_channels):
-        col1, col2 = st.columns([6, 1])
-        with col1:
-            st.session_state.youtube_channels[i] = st.text_input(
-                "Channel URL",
-                value=channel,
-                key=f"channel_{i}",
-                label_visibility="collapsed"
-            )
-        # Show remove button for all except the first field
-        with col2:
-            if i > 0:
-                if st.button("❌", key=f"remove_{i}"):
-                    st.session_state.youtube_channels.pop(i)
-                    st.rerun()
-    
-    # Add channel button
-    st.button("Add Channel ➕", on_click=add_channel_field)
-    
-    st.divider()
-    
-    st.subheader("Date Range")
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start Date")
-        st.session_state.start_date = start_date
-        # store date as string
-        st.session_state.start_date = start_date.strftime("%Y-%m-%d")
-    with col2:
-        end_date = st.date_input("End Date")
-        st.session_state.end_date = end_date
-        st.session_state.end_date = end_date.strftime("%Y-%m-%d")
 
     st.divider()
-    st.button("Start Analysis 🚀", type="primary", on_click=start_analysis)
+    st.button("Generate Report 🚀", type="primary", on_click=start_analysis)
+    
+    st.markdown(f"[Datasource - Estimates of overseas residents’ visits and spending collected by Office for National Statistics](https://www.ons.gov.uk/peoplepopulationandcommunity/leisureandtourism/datasets/estimatesofoverseasresidentsvisitsandspendingintheuk)", unsafe_allow_html=True)
+    st.markdown(f"[Expedia Sample Report 2024](https://partner.expediagroup.com/en-us/resources/research-insights/unpack-24-travel-trends-2024)", unsafe_allow_html=True)
+    st.markdown(f"[Expedia Sample Report 2025](https://www.expedia.ca/unpack-travel-trends/)", unsafe_allow_html=True)
     # st.button("Clear Chat", on_click=reset_chat)
 
 # ===========================
@@ -265,13 +101,24 @@ if st.session_state.response:
         try:
             result = st.session_state.response
             st.markdown("### Generated Analysis")
-            st.markdown(result)
+            result_dict = json.loads(result.raw)
+            # Check if the result is a dictionary
+            if isinstance(result_dict , dict):
+                for key, value in result_dict.items():
+                    st.markdown(f"#### {key.capitalize()}")
+                    
+                    # Handle different data types for values
+                    if isinstance(value, list):
+                        for item in value:
+                            st.markdown(f"- {item}")
+                    else:
+                        st.markdown(value)
             
             # Add download button
             st.download_button(
                 label="Download Content",
                 data=result.raw,
-                file_name=f"youtube_trend_analysis.md",
+                file_name=f"UK_report.md",
                 mime="text/markdown"
             )
         except Exception as e:
@@ -279,4 +126,4 @@ if st.session_state.response:
 
 # Footer
 st.markdown("---")
-st.markdown("Built with CrewAI, Bright Data and Streamlit")
+st.markdown("Built with CrewAI, Streamlit")

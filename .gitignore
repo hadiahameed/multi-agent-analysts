@@ -1,2 +1,6 @@
 .env
 travel_agent_wf/
+db/
+__pycache__/
+data/
+.DS_Store
